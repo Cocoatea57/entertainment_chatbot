@@ -1,0 +1,100 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ghana-red: #CE1126;
+  --color-ghana-gold: #FCD116;
+  --color-ghana-green: #006B3F;
+  --color-ghana-black: #1a1a1a;
+  --color-ghana-lime: #15803d;
+  --color-ghana-bright: #22c55e;
+}
+
+/* Markdown styling inside chat bubbles */
+.prose-chat p {
+  margin-bottom: 0.5em;
+}
+
+.prose-chat p:last-child {
+  margin-bottom: 0;
+}
+
+.prose-chat strong {
+  font-weight: 700;
+  color: #FCD116;
+}
+
+.prose-chat em {
+  font-style: italic;
+}
+
+.prose-chat ul,
+.prose-chat ol {
+  margin: 0.5em 0;
+  padding-left: 1.5em;
+}
+
+.prose-chat ul {
+  list-style-type: disc;
+}
+
+.prose-chat ol {
+  list-style-type: decimal;
+}
+
+.prose-chat li {
+  margin-bottom: 0.25em;
+}
+
+.prose-chat li:last-child {
+  margin-bottom: 0;
+}
+
+.prose-chat h1,
+.prose-chat h2,
+.prose-chat h3 {
+  font-weight: 700;
+  margin: 0.75em 0 0.5em 0;
+}
+
+.prose-chat h1 {
+  font-size: 1.2em;
+}
+
+.prose-chat h2 {
+  font-size: 1.1em;
+}
+
+.prose-chat h3 {
+  font-size: 1.05em;
+}
+
+.prose-chat h1:first-child,
+.prose-chat h2:first-child,
+.prose-chat h3:first-child {
+  margin-top: 0;
+}
+
+.prose-chat code {
+  background: rgba(255, 255, 255, 0.15);
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
+.prose-chat a {
+  color: #FCD116;
+  text-decoration: underline;
+}
+
+.prose-chat blockquote {
+  border-left: 3px solid #FCD116;
+  padding-left: 0.75em;
+  margin: 0.5em 0;
+  opacity: 0.9;
+}
+
+.prose-chat hr {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  margin: 0.75em 0;
+}

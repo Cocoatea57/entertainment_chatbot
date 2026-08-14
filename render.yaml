@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: creativearts-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false

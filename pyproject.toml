@@ -1,0 +1,13 @@
+[project]
+name = "creativearts"
+version = "0.1.0"
+description = "CreativeArts — Ghana Creative Industry RAG Chatbot"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "openai>=1.0.0",
+    "python-dotenv>=1.0.0",
+    "chromadb>=1.0.0",
+    "fastapi>=0.110.0",
+    "uvicorn>=0.29.0",
+]
