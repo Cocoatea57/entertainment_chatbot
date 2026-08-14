@@ -1,3 +1,13 @@
+FROM node:20-slim AS frontend-builder
+
+WORKDIR /app/frontend
+
+COPY frontend/package.json frontend/package-lock.json* ./
+RUN npm install
+
+COPY frontend/ ./
+RUN npm run build
+
 FROM python:3.12-slim AS builder
 
 WORKDIR /app
@@ -18,6 +28,8 @@ COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/pytho
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 COPY . .
+
+COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
 WORKDIR /app/backend
 

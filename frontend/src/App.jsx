@@ -2,7 +2,7 @@ import { useState } from 'react'
 import ChatWindow from './components/ChatWindow'
 import ChatInput from './components/ChatInput'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/chat'
+const API_URL = import.meta.env.VITE_API_URL || '/chat'
 
 export default function App() {
   const [messages, setMessages] = useState([])

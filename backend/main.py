@@ -14,8 +14,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from openai import OpenAI
 
@@ -24,6 +26,8 @@ from vector_store import retrieve, retrieve_sources
 load_dotenv(Path(__file__).parent.parent / ".env")
 
 app = FastAPI(title="CreativeArts API")
+
+FRONTEND_DIR = Path(__file__).parent.parent / "frontend" / "dist"
 
 app.add_middleware(
     CORSMiddleware,
@@ -166,6 +170,9 @@ Answer the question using the context above. Be specific and Ghana-focused."""
     return ChatResponse(reply=reply, sources=sources)
 
 
-@app.get("/")
-def root():
-    return {"status": "ok", "service": "CreativeArts API"}
+@app.get("/{full_path:path}")
+async def serve_frontend(request: Request, full_path: str):
+    file_path = FRONTEND_DIR / full_path
+    if file_path.is_file():
+        return FileResponse(file_path)
+    return FileResponse(FRONTEND_DIR / "index.html")

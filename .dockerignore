@@ -11,15 +11,6 @@ __pycache__/
 
 frontend/node_modules/
 frontend/dist/
-frontend/.env
-frontend/.oxlintrc.json
-frontend/public/
-frontend/src/
-frontend/index.html
-frontend/vite.config.js
-frontend/package.json
-frontend/package-lock.json
-frontend/README.md
 
 chroma_db/
 
