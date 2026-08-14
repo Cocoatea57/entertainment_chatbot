@@ -1,7 +1,7 @@
 """
 ChromaDB Vector Store — CreativeArts RAG Pipeline
 
-Uses sentence-transformers (local, free) for embeddings.
+Uses ChromaDB's built-in embedding function (onnxruntime + MiniLM).
 Provides ingest, search, and retrieve functions for RAG.
 
 Usage:
@@ -16,6 +16,7 @@ import sys
 from pathlib import Path
 
 import chromadb
+from chromadb.utils import embedding_functions
 
 # ---------------------------------------------------------------------------
 # Configuration (relative to project root)
@@ -24,28 +25,14 @@ PROJECT_ROOT = Path(__file__).parent
 CHUNKED_CSV = PROJECT_ROOT / "data" / "ghana_creative_industry_rag_chunked.csv"
 CHROMA_DIR = PROJECT_ROOT / "chroma_db"
 COLLECTION_NAME = "creative_arts"
-EMBEDDING_MODEL = "all-MiniLM-L6-v2"
+
+_default_ef = embedding_functions.DefaultEmbeddingFunction()
 
 # ---------------------------------------------------------------------------
 # Cached globals (loaded once)
 # ---------------------------------------------------------------------------
 _client = None
 _collection = None
-_embedder = None
-
-
-def _get_embedder():
-    global _embedder
-    if _embedder is None:
-        from sentence_transformers import SentenceTransformer
-        _embedder = SentenceTransformer(EMBEDDING_MODEL)
-    return _embedder
-
-
-def _embed(texts: list[str]) -> list[list[float]]:
-    model = _get_embedder()
-    embeddings = model.encode(texts, batch_size=32)
-    return embeddings.tolist()
 
 
 def _get_collection():
@@ -53,11 +40,14 @@ def _get_collection():
     if _collection is None:
         _client = chromadb.PersistentClient(path=str(CHROMA_DIR))
         try:
-            _collection = _client.get_collection(COLLECTION_NAME)
+            _collection = _client.get_collection(
+                COLLECTION_NAME, embedding_function=_default_ef
+            )
         except Exception:
             _collection = _client.get_or_create_collection(
                 name=COLLECTION_NAME,
                 metadata={"hnsw:space": "cosine"},
+                embedding_function=_default_ef,
             )
     return _collection
 
@@ -81,19 +71,16 @@ def ingest():
     except Exception:
         pass
 
-    collection = client.create_collection(
+    collection = client.get_or_create_collection(
         name=COLLECTION_NAME,
         metadata={"hnsw:space": "cosine"},
+        embedding_function=_default_ef,
     )
     print(f"Created collection '{COLLECTION_NAME}'")
 
-    texts = [c["text"] for c in chunks]
-    print(f"Encoding {len(texts)} chunks...")
-    embeddings = _embed(texts)
-
     ids, documents, metadatas = [], [], []
 
-    for chunk, emb in zip(chunks, embeddings):
+    for chunk in chunks:
         ids.append(f"chunk_{chunk['chunk_id']}")
         documents.append(chunk["text"])
         metadatas.append({
@@ -112,7 +99,6 @@ def ingest():
         collection.upsert(
             ids=ids[i:end],
             documents=documents[i:end],
-            embeddings=embeddings[i:end],
             metadatas=metadatas[i:end],
         )
         print(f"  Upserted {end}/{len(ids)} chunks")
@@ -127,10 +113,8 @@ def search(query: str, n_results: int = 5):
     """Search the vector store and print results."""
     collection = _get_collection()
 
-    query_embedding = _embed([query])
-
     results = collection.query(
-        query_embeddings=query_embedding,
+        query_texts=[query],
         n_results=n_results,
         include=["documents", "metadatas", "distances"],
     )
@@ -164,10 +148,8 @@ def retrieve(query: str, n_results: int = 3) -> str:
     """
     collection = _get_collection()
 
-    query_embedding = _embed([query])
-
     results = collection.query(
-        query_embeddings=query_embedding,
+        query_texts=[query],
         n_results=n_results,
         include=["documents", "metadatas", "distances"],
     )
@@ -199,10 +181,8 @@ def retrieve_sources(query: str, n_results: int = 3) -> list[dict]:
     """
     collection = _get_collection()
 
-    query_embedding = _embed([query])
-
     results = collection.query(
-        query_embeddings=query_embedding,
+        query_texts=[query],
         n_results=n_results,
         include=["documents", "metadatas", "distances"],
     )

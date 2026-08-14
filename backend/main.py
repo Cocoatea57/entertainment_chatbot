@@ -124,28 +124,29 @@ class ChatResponse(BaseModel):
 
 @app.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest) -> ChatResponse:
-    client = get_client()
+    try:
+        client = get_client()
 
-    user_query = ""
-    for msg in reversed(req.messages):
-        if msg.role == "user":
-            user_query = msg.content
-            break
+        user_query = ""
+        for msg in reversed(req.messages):
+            if msg.role == "user":
+                user_query = msg.content
+                break
 
-    if not user_query:
-        raise HTTPException(status_code=400, detail="No user message found")
+        if not user_query:
+            raise HTTPException(status_code=400, detail="No user message found")
 
-    # RAG: retrieve context + structured sources
-    context = retrieve(user_query, n_results=3)
-    sources = retrieve_sources(user_query, n_results=3)
+        # RAG: retrieve context + structured sources
+        context = retrieve(user_query, n_results=3)
+        sources = retrieve_sources(user_query, n_results=3)
 
-    # Build messages with RAG context
-    messages = [{"role": "system", "content": RAG_SYSTEM_PROMPT}]
+        # Build messages with RAG context
+        messages = [{"role": "system", "content": RAG_SYSTEM_PROMPT}]
 
-    for msg in req.messages[-8:]:
-        messages.append({"role": msg.role, "content": msg.content})
+        for msg in req.messages[-8:]:
+            messages.append({"role": msg.role, "content": msg.content})
 
-    rag_user_msg = f"""User question: {user_query}
+        rag_user_msg = f"""User question: {user_query}
 
 Relevant context from knowledge base:
 ---
@@ -154,9 +155,8 @@ Relevant context from knowledge base:
 
 Answer the question using the context above. Be specific and Ghana-focused."""
 
-    messages[-1] = {"role": "user", "content": rag_user_msg}
+        messages[-1] = {"role": "user", "content": rag_user_msg}
 
-    try:
         response = client.chat.completions.create(
             model=MODEL,
             messages=messages,
@@ -164,6 +164,8 @@ Answer the question using the context above. Be specific and Ghana-focused."""
             max_tokens=2048,
         )
         reply = response.choices[0].message.content or ""
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
