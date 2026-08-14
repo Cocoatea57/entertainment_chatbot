@@ -22,8 +22,15 @@ export default function App() {
       })
 
       if (!res.ok) {
-        const err = await res.json()
-        throw new Error(err.detail || `HTTP ${res.status}`)
+        let msg = `HTTP ${res.status}`
+        try {
+          const err = await res.json()
+          msg = err.detail || msg
+        } catch {
+          const text = await res.text()
+          if (text) msg = text.slice(0, 200)
+        }
+        throw new Error(msg)
       }
 
       const data = await res.json()

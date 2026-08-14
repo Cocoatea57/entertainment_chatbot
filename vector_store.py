@@ -1,7 +1,7 @@
 """
 ChromaDB Vector Store — CreativeArts RAG Pipeline
 
-Uses OpenAI embeddings (text-embedding-3-small) for lightweight deployment.
+Uses sentence-transformers (local, free) for embeddings.
 Provides ingest, search, and retrieve functions for RAG.
 
 Usage:
@@ -9,53 +9,56 @@ Usage:
     python vector_store.py search "What is Ghallywood?"
 """
 
+import csv
 import json
 import os
 import sys
 from pathlib import Path
 
 import chromadb
-from openai import OpenAI
 
 # ---------------------------------------------------------------------------
 # Configuration (relative to project root)
 # ---------------------------------------------------------------------------
 PROJECT_ROOT = Path(__file__).parent
-EMBEDDINGS_JSON = PROJECT_ROOT / "data" / "ghana_creative_industry_openai_embeddings.json"
+CHUNKED_CSV = PROJECT_ROOT / "data" / "ghana_creative_industry_rag_chunked.csv"
 CHROMA_DIR = PROJECT_ROOT / "chroma_db"
 COLLECTION_NAME = "creative_arts"
-EMBEDDING_MODEL = "text-embedding-3-small"
+EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 
 # ---------------------------------------------------------------------------
 # Cached globals (loaded once)
 # ---------------------------------------------------------------------------
 _client = None
 _collection = None
-_openai_client = None
+_embedder = None
 
 
-def _get_openai_client() -> OpenAI:
-    global _openai_client
-    if _openai_client is None:
-        api_key = os.environ.get("OPENAI_API_KEY")
-        if not api_key:
-            raise RuntimeError("OPENAI_API_KEY not set — needed for embeddings")
-        _openai_client = OpenAI(api_key=api_key)
-    return _openai_client
+def _get_embedder():
+    global _embedder
+    if _embedder is None:
+        from sentence_transformers import SentenceTransformer
+        _embedder = SentenceTransformer(EMBEDDING_MODEL)
+    return _embedder
 
 
 def _embed(texts: list[str]) -> list[list[float]]:
-    """Embed a list of texts using OpenAI's embedding API."""
-    client = _get_openai_client()
-    response = client.embeddings.create(model=EMBEDDING_MODEL, input=texts)
-    return [item.embedding for item in response.data]
+    model = _get_embedder()
+    embeddings = model.encode(texts, batch_size=32)
+    return embeddings.tolist()
 
 
 def _get_collection():
     global _client, _collection
     if _collection is None:
         _client = chromadb.PersistentClient(path=str(CHROMA_DIR))
-        _collection = _client.get_collection(COLLECTION_NAME)
+        try:
+            _collection = _client.get_collection(COLLECTION_NAME)
+        except Exception:
+            _collection = _client.get_or_create_collection(
+                name=COLLECTION_NAME,
+                metadata={"hnsw:space": "cosine"},
+            )
     return _collection
 
 
@@ -63,13 +66,12 @@ def _get_collection():
 # Ingest
 # ---------------------------------------------------------------------------
 def ingest():
-    """Load pre-computed OpenAI embeddings from JSON and store in ChromaDB."""
-    print(f"Loading embeddings from {EMBEDDINGS_JSON}")
-    with open(EMBEDDINGS_JSON, "r", encoding="utf-8") as f:
-        data = json.load(f)
+    """Load chunked CSV and store in ChromaDB using local embeddings."""
+    print(f"Loading chunks from {CHUNKED_CSV}")
+    with open(CHUNKED_CSV, "r", encoding="utf-8") as f:
+        chunks = list(csv.DictReader(f))
 
-    chunks = data["chunks"]
-    print(f"Loaded {len(chunks)} chunks (dim={data['dimension']})")
+    print(f"Loaded {len(chunks)} chunks")
 
     client = chromadb.PersistentClient(path=str(CHROMA_DIR))
 
@@ -85,12 +87,15 @@ def ingest():
     )
     print(f"Created collection '{COLLECTION_NAME}'")
 
-    ids, documents, embeddings, metadatas = [], [], [], []
+    texts = [c["text"] for c in chunks]
+    print(f"Encoding {len(texts)} chunks...")
+    embeddings = _embed(texts)
 
-    for chunk in chunks:
+    ids, documents, metadatas = [], [], []
+
+    for chunk, emb in zip(chunks, embeddings):
         ids.append(f"chunk_{chunk['chunk_id']}")
         documents.append(chunk["text"])
-        embeddings.append(chunk["embedding"])
         metadatas.append({
             "source_id": str(chunk.get("source_id", "")),
             "category": chunk.get("category", ""),
